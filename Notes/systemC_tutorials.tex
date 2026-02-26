@@ -1,0 +1,754 @@
+\documentclass[11pt]{article}
+\usepackage{geometry}[cm]
+\usepackage[OT1]{fontenc}
+% \renewcommand*\familydefault{\sfdefault} %% Only if the base font of the document is to be sans serif
+\usepackage[T1]{fontenc}
+\usepackage[urw-garamond]{mathdesign}
+\usepackage{garamondx}
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+    }
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{CPPStyle}{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=L,
+  xleftmargin=\parindent,
+  language=C++,
+  showstringspaces=false,
+  basicstyle=\small,
+  keywordstyle=\bfseries\color{magenta!40!black},
+  commentstyle=\itshape\footnotesize\color{green!40!black},
+  identifierstyle=\color{blue},
+  stringstyle=\color{orange},
+}
+
+\lstset{style=CPPStyle}
+\usepackage{setspace}
+\setstretch{1.0}
+\newcommand{\cpp}{\phantom{x}\texttt C\!+\!+\phantom{x}}
+
+%opening
+\title{systemC Programming}
+\author{Naveen Yadav}
+
+\begin{document}
+% \pagecolor{orange}
+% \color{white}% set the default colour to white
+
+\setcounter{section}{0}
+\maketitle
+\tableofcontents
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{What is SoC?}
+An SoC is literally a \emph{system on a chip}, consisting of both silicon (an integrated circuit that integrates most or all components of a computer or electronic system.) and embedded software. The following components are usually included on a single substrate or microchip:
+\begin{enumerate}
+\item On-chip central processing unit (CPU),
+\item Memory interfaces,
+\item Input/output (I/O) devices and interfaces,
+\item Secondary storage interfaces,
+\item Components such as radio modems and a graphics processing unit (GPU).
+\end{enumerate}
+In general, such systems may contain
+\begin{enumerate}
+ \item Digital circuits to process signals that represents data as a \emph{sequence of discrete values}; at any given time it can only take on, at most, one of a finite number of values.
+ \item Analog circuits to process signals that represent a quantity as a \emph{continuous-time} signal. For example, in an analog audio signal, the instantaneous signal voltage varies continuously with the pressure of the sound waves.
+ \item Mixed-signals circuits to process both analog and digital circuits on the same integrated circuit (IC). For example, an analog-to-digital converter (ADC) is a typical mixed-signal circuit.
+\end{enumerate}
+SoC design involves complex algorithm and architecture development and analysis similar to that performed in \emph{system design}. In a nutshell, it involves understanding of component parts and their subsequent interaction with one another.
+\section{What is systemC?}
+It is a language for for System-level design, modeling and verification.
+\section{Compiling systemC programs}
+Lets assume that we have built an environment module for systemC. The configuration of the module file is:
+\begin{lstlisting}[language=bash,basicstyle=\ttfamily\footnotesize, caption=systemC Module.]
+> module show systemC
+/home/nyadav/privatemodules/systemC:
+setenv          SYSTEMC_HOME /home/nyadav/opt/systemC
+setenv          SYSTEMC_INCLUDE /home/nyadav/opt/systemC/include
+setenv          SYSTEMC_LIB /home/nyadav/opt/systemC/lib64
+setenv          SYSTEMC_MAN /home/nyadav/opt/systemC/share
+prepend-path    LD_LIBRARY_PATH /home/nyadav/opt/systemC/lib64
+prepend-path    C_PATH /home/nyadav/opt/systemC/include
+prepend-path    C_INCLUDE_PATH /home/nyadav/opt/systemC/include
+prepend-path    CPLUS_INCLUDE_PATH /home/nyadav/opt/systemC/include
+prepend-path    MANPATH /home/nyadav/opt/systemC/share
+prepend-path    CMAKE_MODULE_PATH /home/nyadav/opt/systemC/lib64/cmake
+\end{lstlisting}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+If we have a program called \texttt{hello\_world.cpp}, it can be compiled in two step process:
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\footnotesize, caption=Compiling a single file systemC program.]
+g++ -c hello_world.cpp -I\$SYSTEMC_INCLUDE
+g++ -o a.out hello_world.o -L\$SYSTEMC_LIB -lsystemc
+\end{lstlisting}
+Here the first step compiles the program including the proper headers, and the second step links the object file with the library.
+
+\section{systemC Tutorial}
+\paragraph {systemC header file:} To use the systemC class library features, an application shall include either of the \cpp header files specified below:
+\begin{lstlisting}[caption=Including the systemC header.]
+ /* Add all of the names from the namespaces
+    sc_core and sc_dt to the declarative region
+    in which it is included. The namespace sc_core
+    is defined inside sc_object.h -- Abstract base
+    class of all systemC `simulation' objects.
+ */
+ #include <systemC.h>
+ /* systemC.h is provided for backward
+    compatibility with earlier versions of
+    systemC and may be deprecated in future
+    versions of this standard. The better
+    way to do it is using `systemC` header.
+ */
+ #include <systemC>
+\end{lstlisting}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{systemC entry point:} While a normal \cpp programs entry point is the \lstinline|main()| function, systemC user has to use
+\begin{lstlisting}[language=C++, style=CPPStyle]
+int sc_main(int argc, char* argv[])
+\end{lstlisting}
+as the entry point. This is because systemC library has the \lstinline{main()} function already defined, therefore \lstinline{main()} will call \lstinline{sc_main()} and passes the command-line parameters.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{systemC module}
+A systemC module is a \lstinline|class| (or \lstinline|struct|) that inherits the \lstinline|sc_core::sc_module| base class. A systemC module is the \emph{smallest container of functionality with state, behavior, and structure for hierarchical connectivity}. It is the \emph{principle} structural building block of systemC. Syntactically, it is a \cpp \lstinline|class|, which inherits a systemC basic \lstinline|class|, the  \lstinline|sc_core::sc_module|, and is used to represent a component in real systems.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{How to define a systemC module}
+A systemC module can be defined in three ways
+\begin{enumerate}
+ \item As a \lstinline{struct} inheriting a systemC basic \lstinline|class|, the  \lstinline|sc_core::sc_module|
+\begin{lstlisting}
+struct module-name: public sc_core::sc_module {};
+\end{lstlisting}
+ \item As a \lstinline{class} inheriting a systemC basic \lstinline|class|, the  \lstinline|sc_core::sc_module|
+\begin{lstlisting}
+class module-name: public sc_core::sc_module {};
+\end{lstlisting}
+ \item Using the systemC defined macro \lstinline|SC_MODULE|, which is equivalent to the first method of defining a systemC module
+\begin{lstlisting}
+SC_MODULE(module-name) {};
+\end{lstlisting}
+  The macro \lstinline|SC_MODULE| is defined as
+\begin{lstlisting}[caption=Macro \lstinline|SC_MODULE| definition.]
+#define SC_MODULE(  module-name) \
+struct module-name : ::sc_core::sc_module
+\end{lstlisting}
+\end{enumerate}
+The first two methods are similar except that the members of a \lstinline{struct} have \lstinline{public} access by default, while the members of a \lstinline{class} have \lstinline{private} access by default.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{How to use a systemC module}
+systemC module objects have certain properties which sets them apart from normal classes.
+\begin{enumerate}
+ \item Objects of \lstinline|class sc_core::sc_module| can only be constructed during \emph{elaboration}\footnote{Elaboration is the execution of statements prior to \lstinline|sc_core::sc_start()|. The primary purpose is to create internal data structures to support the semantics of simulation. Also check out the meaning in VHDL and FPGA terminology here: \url{https://vhdlwhiz.com/terminology/elaboration/\#elaboration}.}. It is an error to instantiate a module during simulation, as module instantiation happens during elaboration phase.
+ \item Every class derived (directly or indirectly) from \lstinline|sc_core::sc_module| \emph{must} have at least one constructor.
+ \item Every constructor \emph{must have one and only one} parameter of \lstinline|class sc_core::sc_module_name|, however it may have further parameters of classes other than  \lstinline|class sc_core::sc_module_name|.
+ \item While creating an instance of systemC module, a string-valued argument \emph{must be} passed to the constructor\footnote{It is good practice to make this string name the same as the \cpp variable name through which the module is referenced, if such a variable exists.}.
+ \item \emph{Inter-module communication} should typically be accomplished using interface method calls; that is, a module should communicate with its environment through its \emph{ports}. Other communication mechanisms are permissible, for example, for debugging or diagnostic purposes.
+\end{enumerate}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{systemC Module Constructor}
+Each \cpp class has a constructor -- a special member function used to initialize objects, such that each data member is given a well-defined initial value. A \emph{default} constructor is \emph{auto-generated} if an explicit constructor is not provided. As discussed above, every systemC module must have a \emph{unique name}, which is provided when instantiating a module object. Therefore, we need a constructor with atleast one parameter (of type \lstinline|sc_core::sc_module_name|).
+\paragraph{\lstinline|SC_CTOR|:}For convenience, systemC provides a macro (\lstinline|SC_CTOR|) when declaring or defining a constructor of a module. The macro \lstinline|SC_CTOR| is defined as
+\begin{lstlisting}[caption=Macro \lstinline|SC_CTOR| definition.]
+// Function like macros (note the newline usage)
+#define SC_CTOR(module-name) \
+module-name(::sc_core::sc_module_name)
+\end{lstlisting}
+The macro \lstinline|SC_CTOR| has limitations:
+\begin{enumerate}
+ \item It can only be used where \cpp rules permit a constructor to be declared.
+ \item It has only one argument, the name of the module class being constructed.
+ \item It can not add user-defined arguments to the constructor\footnote{Module objects which need additional arguments for instantiation must be provided such constructors explicitly.}.
+ \item Since \lstinline|SC_CTOR| has a constructor function declaration, it can only be placed inside class header.
+\end{enumerate}
+% \paragraph{\lstinline|SC_HAS_PROCESS|:} systemC v2.0 provides an alternative constructor using a \cpp macro called \lstinline|SC_HAS_PROCESS| that is defined as
+% \begin{lstlisting}[caption=Macro \lstinline|SC_HAS_PROCESS| definition.]
+% // Function like macros (note the newline usage)
+% #define SC_HAS_PROCESS(module-name) \
+% typedef module-name SC_CURRENT_USER_MODULE;
+% \end{lstlisting}
+% In both the cases, the module name (which is a type in itself in \cpp) is further defined as \lstinline|SC_CURRENT_USER_MODULE|, as it allows to register member functions to simulation kernel via \lstinline{SC_METHOD/SC_THREAD/SC_CTHREAD}.
+
+\section{Simulation Process}
+A simulation process:
+\begin{enumerate}
+ \item is a member function of a \lstinline|sc_module| \lstinline|class|, and
+ \item has no input argument and returns no value, and
+ \item is registered with the simulation kernel
+\end{enumerate}
+
+\subsection{How to register a simulation process?}
+\begin{enumerate}
+  \item \lstinline|SC_METHOD(func)|: does \emph{not} have its own thread of execution, consumes no simulated time, cannot be suspended, and cannot call code that calls \lstinline|wait()|.
+  \item \lstinline|SC_THREAD(func)|: has its own thread of execution, may consume simulated time, can be susupended, and can call code that calls \lstinline|wait()|.
+  \item \lstinline|SC_CTHREAD(func, event)|: a special form of \lstinline|SC_THREAD| (clocked thread) that can only have a static sensitivity of a clock edge event.
+\end{enumerate}
+Simulation processes can be registered:
+\begin{enumerate}
+ \item in the body of the constructor,
+ \item in the  \lstinline|before_end_of_elaboration()| or \lstinline|end_of_elaboration()| callbacks of a module,
+ \item or in a member function called from the constructor or callback\footnote{What is a \href{https://en.wikipedia.org/wiki/Callback_(computer_programming)}{callback?} In computer programming, a callback is a programming pattern in which a function reference is passed from one context (\emph{consumer}) to another (\emph{provider}) such that the provider can call the function. If the function accesses state or functionality of the consumer, then the call is back to the consumer – backwards compared to the normal flow of control in which a consumer calls a provider.}.
+\end{enumerate}
+Registration can \emph{only} be performed on member functions of the \emph{same} module. In addition,  \lstinline|SC_CTHREAD| shall not be invoked from the \lstinline|end_of_elaboration()| callback. Certain noteworthy points are:
+\begin{enumerate}
+ \item \lstinline|SC_THREAD| can do everything that \lstinline|SC_METHOD| or \lstinline|SC_CTHREAD| does, therefore, it is quite useful,
+ \item In order for an \lstinline|SC_THREAD| or \lstinline|SC_CTHREAD| process \emph{to be called again}, one needs a \lstinline|while| loop making sure the thread executing it never exits.
+ \item An \lstinline|SC_THREAD| process doesn't require a \lstinline|while| loop. It is invoked again by \lstinline|next_trigger()|.
+ \item Simulated time in systemC is not the actual time a program runs. It's a \emph{counter managed by the simulation kernel}.
+\end{enumerate}
+\subsection{Call-backs}
+Four callback functions are called by the kernel at various stages during elaboration and simulation. They have the following declarations:
+\begin{enumerate}
+ \item \lstinline|virtual void before_end_of_elaboration()|: called after the construction of the module hierarchy
+ \item \lstinline|virtual void end_of_elaboration()|: called at the very end of elaboration after all callbacks to \lstinline|before_end_of_elaboration| have completed and after the completion of any instantiation or port binding performed by those callbacks and before starting simulation.
+ \item \lstinline|virtual void start_of_simulation()|:
+ \begin{enumerate}
+ \item called immediately when the application calls \lstinline|sc_start| for the first time or at the very start of simulation, if simulation is initiated under the direct control of the kernel. The function \lstinline|sc_start(duration)|
+ \item if an application makes multiple calls to \lstinline|sc_start|, \lstinline|start_of_simulation| is called on the first call to \lstinline|sc_start|.
+ \item called after the callbacks to \lstinline|end_of_elaboration| and before invoking the initialization phase of the scheduler.
+\end{enumerate}
+ \item \lstinline|virtual void end_of_simulation()|:
+     \begin{enumerate}
+       \item called when the scheduler halts because of \lstinline|sc_stop| or at the very end of simulation if simulation is initiated under the direct control of the kernel.
+       \item called only once even if \lstinline|sc_stop| is called multiple times.
+    \end{enumerate}
+\end{enumerate}
+\section{Stages of A Simulation}
+The systemC application has three phases/stages of operation:
+\begin{enumerate}
+ \item \textbf{Elaboration}: Execution of statements prior to \lstinline|sc_start()|. The primary purpose is to create internal data structures to support the semantics of simulation. During elaboration, the parts of the module hierarchy (modules, ports, primitive channels, and processes) are created, and \emph{ports and exports(?) are bound to channels}.
+ \item \textbf{Execution}: This stage further break-down to two stages:
+ \begin{enumerate}
+  \item \textbf{Initialization}: Simulation kernel identifies all simulation processes and place them in either a runnable or waiting process set. All simulation processes are in runnable set except those requesting "no initialization".
+  \item \textbf{Simulation}: It is commonly described as a state machine that schedules processes to run, and advances simulation time. It has two internal phases:
+  \begin{enumerate}
+   \item \textbf{Evaluate}: Run all runnable processes (these are processes that have just reached their triggers for execution) one at a time. Each process runs till reaches \lstinline|wait()| or \lstinline|return|. Stops if no runnable processes left.
+   \item \textbf{Advance-time}: Once the set of runnable processes is emptied, simulation enters \emph{advance-time phase} where it:
+   \begin{enumerate}
+     \item moves simulated time to the closest time with a scheduled event.
+     \item moves processes waiting for that particular (event) time into the runnable set.
+     \item returns to \emph{evaluation phase}.
+   \end{enumerate}
+  \end{enumerate}
+\end{enumerate}
+ \item \textbf{Cleanup or post-processing}: The progression from \emph{evaluate to advance-time} continues until one of the three things occurs.
+  \begin{enumerate}
+   \item all processes have yielded.
+   \item a process has executed \lstinline|sc_stop()|.
+   \item maximum time is reached.
+  \end{enumerate}
+  Thereafter, the simulation moves to the cleanup phase, where the simulation destroys objects, releases memory, closes open files etc.
+\end{enumerate}
+
+\section{Time Notation}
+Let's first understand the difference of the two time measurements:
+\begin{enumerate}
+ \item \textbf{Wall-clock time}: The time from the start of execution to completion, including time waiting on other system activities and applications.
+ \item \textbf{Simulated time}: The time being modeled by the simulation, which may be less than or greater than the simulation's wall-clock time.
+\end{enumerate}
+In systemC, \lstinline|sc_time| is the data type used by simulation kernal to track simulated time. It defines several time units: \lstinline|SC_SEC|, \lstinline|SC_MS|, \lstinline|SC_US|, \lstinline|SC_NS|, \lstinline|SC_PS|, \lstinline|SC_FS|. Each subsequent time unit is $1/1000$ of its preceder.
+
+\lstinline|sc_time| objects may be used as operands for assignment, arithmetic, and comparison operations:
+\begin{enumerate}
+ \item multiplication allows one of its operands to be a double.
+ \item division allows the divisor to be a double.
+\end{enumerate}
+
+\paragraph{\lstinline|SC_ZERO_TIME|:} A macro representing a time value of zero. It is good practice to use this constant whenever writing a time value of zero, for example, when creating a delta notification or a delta time-out.
+
+\paragraph{\lstinline|sc_time_stamp|:} To get current simulated time, use \lstinline|sc_time_stamp()|.
+
+\paragraph{\lstinline|sc_set_time_resolution|:} Function used to set the time resolution. Resolution time
+\begin{enumerate}
+ \item must be positive,
+ \item must be a power of ten,
+ \item can only be specified during elaboration,
+ \item can be specified only once,
+ \item can only be specified before any \lstinline|sc_time| is constructed, and
+ \item must be larger than or equal to $1$ ys.
+\end{enumerate}
+
+\paragraph{\lstinline|sc_set_default_time_unit|:}  Deprecated Features in SystemC 2.2. \footnote{Default time units are now considered a legacy from \texttt{systemC version 1}, when there was but a single global clock and no proper timed notifications at all. The deprecated functions are \lstinline|sc_simulation_time|, \lstinline|sc_set_default_time_unit|, \lstinline|sc_get_default_time_unit|, \lstinline|sc_start(double)|, and constructor \lstinline|sc_clock(const char*, double, double, double, bool)|. One should now use explicit time units instead of integers, as in \lstinline|sc_core::sc_time(1, sc_sore::SC_NS)|}
+
+\section{Concurrency}
+systemC uses simulation processes to model concurrency. It's \emph{not true concurrent execution}.
+When multiple processes are simulated as running concurrently, only one is executed at a particular time. However, the simulated time remain unchanged until all concurrent processes finish their current tasks.
+Thus, these processes are \emph{running concurrently on the same ``simulated time''}. This differs from e.g. the Go language, which is real concurrency.
+
+\section{Event}
+An event is an object of class \lstinline|sc_event| used for \emph{process synchronization}. A process instance may be \emph{triggered or resumed on the occurrence of an event}, i.e., when the event is notified. Any given event may be notified on many separate occasions.
+
+\lstinline|sc_event| has the following methods:
+\begin{enumerate}
+ \item \lstinline|void notify()|: Create an immediate notification.
+ \item \lstinline|void notify(const sc_time&)|, \lstinline|void notify(double, sc_time_unit)|:
+ \begin{enumerate}
+  \item \textbf{Zero time:} Create a delta notification.
+  \item \textbf{Non-zero time:} Create a timed notification at the given time, expressed relative to the simulation time when function notify is called.
+ \end{enumerate}
+ \item \lstinline|void cancel()|: Delete any pending notification for this event
+ \begin{enumerate}
+  \item At most one pending notification can exist for any given event.
+  \item Immediate notification cannot be cancelled.
+ \end{enumerate}
+\end{enumerate}
+When using event there are some constraints:
+\begin{enumerate}
+ \item Objects of class \lstinline|sc_event| may be constructed during elaboration or simulation.
+ \item  Events may be notified during elaboration or simulation, except that it shall be an error to create an immediate notification during elaboration or from one of the callbacks:
+ \begin{enumerate}
+  \item \lstinline|before_end_of_elaboration|,
+  \item \lstinline|end_of_elaboration|, or
+  \item \lstinline|start_of_simulation|.
+ \end{enumerate}
+\end{enumerate}
+An given event shall have no more than one pending notification:
+\begin{enumerate}
+ \item If function notify is called for an event that already has a notification pending, only the notification scheduled to occur at the earliest time shall survive.
+ \item The notification scheduled to occur at the later time shall be cancelled (or never be scheduled in the first place).
+ \item An immediate notification is taken to occur earlier than a delta notification, and a delta notification earlier than a timed notification. This is irrespective of the order in which function notify is called.
+\end{enumerate}
+Events can be combined with each other, and with a timer. The following forms of \lstinline|sc_core::wait()| are supported.
+\begin{enumerate}
+ \item \lstinline|sc_core::wait()|: wait on events in sensitivity list (\texttt{SystemC 1.0}).
+ \item \lstinline|sc_core::wait(sc_time(20, sc_core::SC_NS))|: wait for $20~\rm ns$.
+ \item \lstinline|sc_core::wait(e1)|: wait on event \lstinline|e1|.
+ \item \lstinline!sc_core::wait(e1 | e2)!: wait on events \lstinline|e1| and \lstinline|e2|.
+ \item \lstinline|sc_core::wait(e1 & e2)|: wait on events \lstinline|e1| and \lstinline|e2|.
+ \item \lstinline|sc_core::wait(sc_core::sc_time(20, sc_core::SC_NS)|: wait for $20~\rm ns$.
+ \item \lstinline|sc_core::wait(sc_core::sc_time(20, sc_core::SC_NS), e1)|: wait on event \lstinline|e1|, timeout after $20~\rm ns$.
+ \item \lstinline!sc_core::wait(sc_core::sc_time(20, sc_core::SC_NS), e1 | e2)!: wait on events \lstinline|e1| and \lstinline|e2| timeout after $20~\rm ns$.
+ \item \lstinline|sc_core::wait(sc_core::sc_time(20, sc_core::SC_NS), e1 & e2)|: wait on events \lstinline|e1| and \lstinline|e2|, timeout after $20~\rm ns$.
+ \item \lstinline|sc_core::wait(200)|: wait for $200$ clock cycles, \lstinline|SC_CTHREAD| only (SystemC 1.0)
+ \item \lstinline|sc_core::wait(0, sc_core::SC_NS)|: wait one delta cycle.
+ \item \lstinline|sc_core::wait(sc_core::SC_ZERO_TIME)|: wait one delta cycle.
+\end{enumerate}
+Note: a mixture of "\lstinline!|!" operators and "\lstinline!&!" operators is not supported in SystemC 2.0
+
+\section{Delta Cycle}
+A \emph{delta cycle} can be thought of as a very small step of time within the simulation, which does not increase the user-visible time. It is comprised of \emph{separate} evaluate and update phases (together these two phases constitute a delta-cycle), and multiple delta cycles may occur at a particular simulated time. When a signal assignment occurs, other processes do not see the newly assigned value until the next delta cycle. Check these links:\\
+\href{https://www.sigasi.com/opinion/jan/vhdls-crown-jewel/}{VHDLs Crown Jewel}\\
+\href{https://docs.amd.com/r/en-US/ug900-vivado-logic-simulation/Delta-Cycles-and-Race-Conditions}{Delta Cycles And Race Conditions}
+\href{https://vhdlwhiz.com/terminology/delta-cycle/}{Delta Cycle}
+\href{https://stackoverflow.com/questions/43652630/delta-cycles-and-waveforms}{Delta Cycles And Waveforms}
+
+A delta cycle is used:
+\begin{enumerate}
+ \item \lstinline|notify(sc_core::SC_ZERO_TIME)| causes the event to be notified in the evaluate phase of the next delta cycle, this is called a "delta notification".
+ \item A (direct or indirect) call to \lstinline|request_update()| causes the \lstinline|update()| method to be called in the update phase of the current delta cycle.
+\end{enumerate}
+
+\section{Sensitivity}
+The sensitivity of a process instance is the set of events and time-outs that can potentially cause the process to be resumed or triggered.
+A process instance is said to be sensitive to an event if the event has been added to the static sensitivity or dynamic sensitivity of the process instance. A time-out occurs when a given time interval has elapsed.
+
+Two types of sensitivities are possible:
+\begin{enumerate}
+ \item \textbf{Static sensitivity} is fixed during elaboration, supported with a sensitivity list for each process in a module.
+ \item \textbf{Dynamic sensitivity} may vary over time under the control of the process itself, support with \lstinline|wait()| for a thread, or \lstinline|next_trigger()| for a method.
+\end{enumerate}
+
+\section{Initialization}
+Initialization is part of the execution stage, which happens \emph{after} \lstinline|sc_start()|. During initialization the program performs the following three steps in the order given:
+\begin{enumerate}
+ \item Run the update phase but without continuing to the delta notification phase.
+ \item Add every method and thread process instance in the object hierarchy to the set of runnable processes, excluding:
+ \begin{enumerate}
+  \item those process instances for which the function \lstinline|dont_initialize| has been called, and
+  \item \emph{clocked} thread processes.
+ \end{enumerate}
+ \item  Run the \emph{delta notification phase}. At the end of the delta notification phase, go to the \emph{evaluation phase}.
+\end{enumerate}
+
+\paragraph{NOTE:}
+\begin{enumerate}
+ \item The update and delta notification phases are necessary because update requests can be created during elaboration in order to set initial values for \emph{primitive channels}, for example, from function initialize of \lstinline|class sc_inout|.
+ \item In SystemC 1.0,
+   \begin{enumerate}
+    \item thread (\lstinline|SC_THREAD|) processes are not executed during the initialization phase of the simulation.
+    \item method (\lstinline|SC_METHOD|) processes are executed during the initialization phase of the simulation if they are made sensitive to input signals/ports.
+  \end{enumerate}
+   \item SystemC 2.0 scheduler will execute all thread processes and all method processes during the initialization phase of the simulation. If the behavior of a thread process is different between SystemC 1.0 and SystemC 2.0, insert one \lstinline|wait()| statement before the infinite loop of the thread process.
+  \item During initialization phase, processes (\lstinline|SC_METHOD| in SystemC 1.0; \lstinline|SC_METHOD| and \lstinline|SC_THREAD| in SystemC 2.0) are executed in an \emph{unspecified order}.
+  \item \lstinline|dont_initialize()|: Used to prevent the scheduler from executing a thread or method process during the initialization phase.
+  \begin{enumerate}
+   \item Applies to the last declared process.
+   \item Cannot be called on process with no static sensitivity, as it will be orphaned.
+  \end{enumerate}
+\end{enumerate}
+
+\section{Method}
+A Method:
+   \begin{enumerate}
+    \item may have static sensitivity.
+    \item only a method process, may call the function \lstinline|next_trigger| to create dynamic sensitivity.
+    \item cannot be made runnable as a result of an immediate notification executed by the process itself, regardless of the static sensitivity or dynamic sensitivity of the method process instance.
+   \end{enumerate}
+\paragraph{\lstinline|next_trigger()|:}
+\begin{enumerate}
+ \item is a member function of class \lstinline|sc_module|,
+ \item a member function of class \lstinline|sc_prim_channel|, and
+ \item a non-member function.
+ \item can be called from:
+ \begin{enumerate}
+  \item a member function of the module itself,
+  \item from a member function of a channel, or
+  \item from any function that is ultimately called from a method process.
+ \end{enumerate}
+\end{enumerate}
+Any local variables declared within the method process will be destroyed on return from the process. \textbf{Data members of the module should be used to store persistent state associated with the method process}. Recall the difference between \lstinline|SC_METHOD| and \lstinline|SC_THREAD|
+\begin{enumerate}
+ \item \lstinline|SC_METHOD(func)|: does not have its own thread of execution, consumes no simulated time, cannot be suspended, and cannot call code that calls \lstinline|wait()|
+\item \lstinline|SC_THREAD(func)|: has its own thread of execution, may consume simulated time, can be susupended, and can call code that calls \lstinline|wait()|
+\end{enumerate}
+
+\section{Event Queue}
+An event queue helps to set a queue of events, unlike an event that is overridden by the next \lstinline|notify()|. An event queue
+\begin{enumerate}
+ \item has a member function \lstinline|notify()|, same as an event
+ \item is a hierarchical channel and can have multiple notifications pending, this differs from an event which can have only one outstanding notification scheduled.
+ \item can only be constructed during elaboration.
+ \item does not support immediate notification
+ \item has member function:
+ \begin{enumerate}
+  \item \lstinline|void notify(double, sc_time_unit)| or \lstinline|void notify(const sc_time&)|:
+  \begin{enumerate}
+   \item zero time i.e. \lstinline|SC_ZERO_TIME|: a delta notification
+   \item non-zero time: notification scheduled relative to the simulation time when function notify is called.
+  \end{enumerate}
+  \item \lstinline|void cancel_all()|: immediately delete every pending notification for this event queue object including both delta and timed notifications.
+ \end{enumerate}
+\end{enumerate}
+In addition, we have more flexibility:
+\begin{enumerate}
+ \item Multiple event queues can be "OR"-ed to form the static sensitivity of a process (cannot use "AND" operation in static sensitivity).
+ \item Event queue cannot be used as input to wait(), thus \emph{cannot} be used in dynamic sensitivity.
+\end{enumerate}
+
+\section{Mutex}
+A mutex is a predefined channel intended to model the behavior of a mutual exclusion lock used to control access to a resource shared by concurrent processes. It shall be in one of two exclusive states: unlocked or locked:
+\begin{enumerate}
+ \item only one process can lock a given mutex at one time.
+ \item a mutex can only be unlocked by the process that locked it.
+ \item After being unlocked, a mutex may be locked by a different process.
+\end{enumerate}
+A mutex object in systemC has the following Member functions:
+\begin{enumerate}
+ \item \lstinline|int lock()|:
+ \begin{enumerate}
+  \item If the mutex is unlocked, \lstinline|lock()| shall lock the mutex and return.
+  \item If the mutex is locked, \lstinline|lock()| shall suspend until the mutex is unlocked (by the locking process).
+  \item If multiple processes attempt to lock the mutex in the same delta cycle, the choice of which process instance is given the lock shall be \emph{non-deterministic}.
+  \item shall unconditionally return the value 0.
+ \end{enumerate}
+
+ \item \lstinline|int trylock()|:
+ \begin{enumerate}
+  \item If the mutex is unlocked, \lstinline|trylock()| shall lock the mutex and shall return the value 0.
+  \item If the mutex is locked, \lstinline|trylock()| shall immediately return the value –1, and the mutex shall remain locked.
+ \end{enumerate}
+
+ \item \lstinline|int unlock()|:
+ \begin{enumerate}
+  \item If the mutex is unlocked, \lstinline|unlock()| shall return the value –1. The mutex shall remain unlocked.
+  \item If the mutex was locked by a process instance other than the calling process, \lstinline|unlock()| shall return the value –1. The mutex shall remain locked.
+  \item If the mutex was locked by the calling process, member function \lstinline|unlock()| shall unlock the mutex and shall return the value 0.
+  \item Immediate notification shall be used to signal the act of unlocking a mutex to other processes.
+ \end{enumerate}
+\end{enumerate}
+Semaphores are a type of synchronization primitive. A useful way to think of a semaphore as used in a real-world system is as a record of how many units of a particular resource are available, coupled with operations to adjust that record safely (i.e., to avoid race conditions) as units are acquired or become free, and, if necessary, wait until a unit of the resource becomes available. In systemC a semaphore:
+\begin{enumerate}
+ \item is a predefined channel intended to model the behavior of a software semaphore used to provide limited concurrent access to a shared resource.
+ \item has an integer value, the semaphore value, which is set to the permitted number of concurrent accesses when the semaphore is constructed.
+ \item if the initial value is one, the semaphore is equivalent to a mutex.
+\end{enumerate}
+systemC semaphore have the following Member functions:
+\begin{enumerate}
+ \item \lstinline|int wait()|:
+ \begin{enumerate}
+    \item If the semaphore value is greater than 0, \lstinline|wait()| shall decrement the semaphore value and return.
+    \item If the semaphore value is equal to 0, \lstinline|wait()| shall suspend until the semaphore value is incremented (by another process).
+    \item Shall unconditionally return the value 0.
+ \end{enumerate}
+ \item \lstinline|int trywait()|:
+ \begin{enumerate}
+    \item If the semaphore value is greater than 0, \lstinline|trywait()| shall decrement the semaphore value and shall return the value 0.
+    \item If the semaphore value is equal to 0, \lstinline|trywait()| shall immediately return the value –1 without modifying the semaphore value.
+ \end{enumerate}
+ \item \lstinline|int post()|:
+ \begin{enumerate}
+    \item shall increment the semaphore value.
+    \item shall use immediate notification to signal the act of incrementing the semaphore value to any waiting processes.
+    \item shall unconditionally return the value 0.
+ \end{enumerate}
+ \item \lstinline|int get_value()|: shall return the semaphore value.
+\end{enumerate}
+In general, semaphores that allow an arbitrary resource count are called counting semaphores, while semaphores that are restricted to the values 0 and 1 (or locked/unlocked, unavailable/available) -- binary semaphores -- can be used to implement a mutex.
+\section{FIFO}
+\lstinline|sc_fifo| is a predefined primitive channel intended to model the behavior of a fifo, i.e., a first in first out buffer. It has a number of slots for storing values. The number of slots is fixed when the object is constructed. The \lstinline|sc_fifo| implements the \lstinline|sc_fifo_in_if<T>| interface and the \lstinline|sc_fifo_out_if<T>| interface.
+\subsection{Constructors}
+\begin{enumerate}
+ \item \lstinline|explicit sc_fifo(int size_ = 16)|: calls the base class constructor from its initializer list as: \lstinline|sc_prim_channel(sc_gen_unique_name( "fifo" ))|
+ \item \lstinline|explicit sc_fifo(const char* name_, int size_ = 16)|: calls the base class constructor from its initializer list as: \lstinline|sc_prim_channel(name_)|
+\end{enumerate}
+Both constructors initialize the number of slots in the \lstinline|fifo| to the value given by the parameter \lstinline|size_|. The number of slots shall be greater than zero.
+\subsection{Member Functions For Read}
+\begin{enumerate}
+ \item \lstinline|void read(T&)|, \lstinline|T read()|:
+ \begin{enumerate}
+  \item return the value least recently written into the \lstinline|fifo| and remove that value from the \lstinline|fifo| such that it cannot be read again.
+  \item the order in which values are read from the \lstinline|fifo| shall precisely match the order in which values were written into the \lstinline|fifo|.
+  \item values written into the \lstinline|fifo| during the current delta cycle are not available for reading in that delta cycle, but become available for reading in the immediately following delta cycle.
+  \item if the \lstinline|fifo| is empty, shall suspend until the data-written event is notified.
+  \end{enumerate}
+
+ \item \lstinline|bool nb_read(T&)|: Non-blocking read.
+ \begin{enumerate}
+  \item return the value least recently written into the \lstinline|fifo| and remove that value from the \lstinline|fifo| such that it cannot be read again.
+  \item the order in which values are read from the \lstinline|fifo| shall precisely match the order in which values were written into the \lstinline|fifo|.
+  \item values written into the \lstinline|fifo| during the current delta cycle are not available for reading in that delta cycle, but become available for reading in the immediately following delta cycle.
+  \item if the \lstinline|fifo| is empty, member function \lstinline|nb_read| shall return immediately without modifying the state of the \lstinline|fifo|, without calling \lstinline|request_update|, and with a return value of \lstinline|false|. Otherwise, if a value is available for reading, the return value of \lstinline|nb_read()| shall be \lstinline|true|.
+ \end{enumerate}
+ \item \lstinline|operator T()|: equivalent to "\lstinline|operator T() {return read();}|
+\end{enumerate}
+
+\subsection{Member Functions For Write}
+\begin{enumerate}
+ \item \lstinline|write(const T&)|:
+ \begin{enumerate}
+  \item write the value passed as an argument into the \lstinline|fifo|.
+  \item multiple values may be written within a single delta cycle.
+  \item if values are read from the \lstinline|fifo| during the current delta cycle, the empty slots in the \lstinline|fifo| so created do not become free for the purposes of writing until the immediately following delta cycle.
+  \item if the \lstinline|fifo| is full, \lstinline|write()| shall suspend until the data-read event is notified.
+ \end{enumerate}
+
+ \item \lstinline|bool nb_write(const T&)|: Non-blocking write.
+ \begin{enumerate}
+  \item write the value passed as an argument into the \lstinline|fifo|.
+  \item multiple values may be written within a single delta cycle.
+  \item if values are read from the \lstinline|fifo| during the current delta cycle, the empty slots in the \lstinline|fifo| so created do not become free for the purposes of writing until the immediately following delta cycle.
+  \item if the \lstinline|fifo| is full, \lstinline|nb_write()| shall return immediately without modifying the state of the \lstinline|fifo|, without calling \lstinline|request_update|, and with a return value of \lstinline|false|. Otherwise, the return value of \lstinline|nb_write()| shall be \lstinline|true|.
+ \end{enumerate}
+
+ \item \lstinline|operator=|: equivalent to "\lstinline|sc_fifo<T>& operator= (const T& a) {write(a); return *this;}|"
+\end{enumerate}
+
+\subsection{Member functions for events}
+\begin{enumerate}
+ \item \lstinline|sc_event& data_written_event()|: shall return a reference to the data-written event, that is notified in the delta notification phase that occurs at the end of the delta cycle in which a value is written into the \lstinline|fifo|.
+ \item \lstinline|sc_event& data_read_event()|: shall return a reference to the data-read event, that is notified in the delta notification phase that occurs at the end of the delta cycle in which a value is read from the \lstinline|fifo|.
+\end{enumerate}
+
+
+\subsection{Member functions for available values and free slots}
+\begin{enumerate}
+ \item  \lstinline|int num_available()|: returns the number of values that are available for \emph{reading} in the current delta cycle. The calculation shall deduct any values read during the current delta cycle but shall not add any values written during the current delta cycle.
+ \item \lstinline|int num_free()|: returns the number of empty slots that are free for \emph{writing} in the current delta cycle. The calculation shall deduct any slots written during the current delta cycle but shall not add any slots made free by reading in the current delta cycle.
+\end{enumerate}
+
+\section{Signal}
+\subsection{Read and Write}
+\lstinline|sc_signal| is a predefined primitive channel intended to model the \emph{behavior of a single piece of wire carrying a digital electronic signal}. It uses the \emph{evaluate-update scheme} to ensure \emph{deterministic behavior} in the case of simultaneous read and write actions -- we maintain a current and new value. Its \lstinline|write()| method will submit an update request if the new value is different from the current value. It implements the \lstinline|sc_signal_inout_if<T>| interface.
+\subsubsection{Constructors}
+\begin{enumerate}
+ \item \lstinline|sc_signal()|: calls the base class constructor from its initializer list as: \lstinline|sc_prim_channel(sc_gen_unique_name("signal"))|
+ \item \lstinline|sc_signal(const char* name_)|: calls the base class constructor from its initializer list as: \lstinline|sc_prim_channel(name_)|
+\end{enumerate}
+\subsubsection{Member Functions}
+\begin{enumerate}
+ \item \lstinline|T& read()|: return a reference to the current value of the signal but shall not modify the state of the signal.
+ \item \lstinline|operator const T& ()|: return a reference to the current value of the signal but shall not modify the state of the signal.
+ \item \lstinline|void write(const T&)|: modifies the value of the signal such that the signal appears to have the new value (as returned by member function read) in the next delta cycle but not before then.
+ \item \lstinline|operator=: equivalent to write()|
+ \item \lstinline|sc_event& default_event()|: return a reference to the value-changed event.
+ \item \lstinline|sc_event& value_changed_event()|: return a reference to the value-changed event.
+ \item \lstinline|bool event()|: return \lstinline|true| if and only if the value of the signal changed in the update phase of the immediately preceding delta cycle and at the current simulation time.
+\end{enumerate}
+As compared to \lstinline|fifo|:
+\begin{enumerate}
+  \item \lstinline|sc_signal| has only one slot for read/write,
+  \item \lstinline|sc_signal| triggers an update request only if the new value is different from the current value,
+  \item read from \lstinline|sc_signal|, however it won't remove the value.
+\end{enumerate}
+
+Other than execution phase, an \lstinline|sc_signal|:
+\begin{enumerate}
+ \item may be written during elaboration to initialize the value of the signal.
+ \item may be written from function \lstinline|sc_main| during elaboration or while simulation is paused, that is, before or after the call to function \lstinline|sc_start|.
+\end{enumerate}
+
+
+\subsection{Event Detection}
+An event in the context of signals occurs if the value of the signal changed in the update phase of the immediately preceding delta cycle and at the current simulation time,
+\begin{enumerate}
+ \item \lstinline|sc_event& default_event()|: return a reference to the value-changed event.
+ \item \lstinline|sc_event& value_changed_event()|: return a reference to the value-changed event.
+ \item \lstinline|bool event()|: return \lstinline|true| if and only if the value of the signal changed in the update phase of the immediately preceding delta cycle and at the current simulation time.
+\end{enumerate}
+
+\subsection{Multiple Writers}
+\begin{lstlisting}
+template< class T, sc_writer_policy POL = SC_DEFAULT_WRITER_POLICY >
+class sc_signal
+  : public sc_signal_t<T,POL>
+\end{lstlisting}
+\begin{enumerate}
+ \item If \lstinline|WRITER_POLICY == SC_ONE_WRITER|, it shall be an error to write to a given signal instance from more than one process instance at any time during simulation (meaning that only one process can have write access to signal)\footnote{Leads to runtime error. \lstinline|Error: (E115) sc_signal<T> cannot have more than one driver|}.
+ \item If \lstinline|WRITER_POLICY == SC_MANY_WRITERS|:
+\begin{enumerate}
+ \item it shall be an error to write to a given signal instance from more than one process instance during any given evaluation phase,
+ \item but different process instances may write to a given signal instance during different delta cycles.
+  \end{enumerate}
+  \item By default an \lstinline|sc_signal| has only one writer; when declared as \lstinline|SC_MANY_WRITERS|, the writers can write to the signal channel at different time.
+  \item An \lstinline|sc_signal| may have more than one readers, which can all read from the signal channel at same or different time.
+\end{enumerate}
+
+\subsection{Resolved Signal}
+A resolved signal is an object of \lstinline|class sc_signal_resolved| or \lstinline|class sc_signal_rv|. It differs from \lstinline|sc_signal| in that a resolved signal may be written by multiple processes, conflicting values being resolved within the channel.
+\begin{enumerate}
+  \item \lstinline|sc_signal_resolved| is a predefined primitive channel derived from \lstinline|class sc_signal|.
+  \item \lstinline|sc_signal_rv| is a predefined primitive channel derived from \lstinline|class sc_signal|.
+  \begin{enumerate}
+  \item \lstinline|sc_signal_rv| is similar to \lstinline|sc_signal_resolved|.
+  \item The difference is that the argument to the base class template \lstinline|sc_signal| is type \lstinline|sc_dt::sc_lv<W>| instead of type \lstinline|sc_dt::sc_logic|
+  \end{enumerate}
+\end{enumerate}
+
+Class definition:
+  \begin{lstlisting}[basicstyle=\scriptsize]
+  class sc_signal_resolved: public sc_signal<sc_dt::sc_logic,SC_MANY_WRITERS>
+
+  template <int W>
+  class sc_signal_rv: public sc_signal<sc_dt::sc_lv<W>,SC_MANY_WRITERS>
+  \end{lstlisting}
+In short, a resolved signal channel can be written by multiple processes at the same time. This differs from an \lstinline|sc_signal|, which can only be written by one process at each delta cycle. The resolution table for \lstinline|sc_signal_resolved|:
+\begin{verbatim}
+  | 0 | 1 | Z | X |          0: sc_dt::SC_LOGIC_0
+--+---+---+---+---+          1: sc_dt::SC_LOGIC_1
+0 | 0 | X | 0 | X |          Z: sc_dt::SC_LOGIC_Z
+--+---+---+---+---+          X: sc_dt::SC_LOGIC_X
+1 | X | 1 | 1 | X |
+--+---+---+---+---+
+Z | 0 | 1 | Z | X |
+--+---+---+---+---+
+X | X | X | X | X |
+\end{verbatim}
+It is assumed that two drivers driving the resolved signal to a 1 or 0 is O.K. This might not be true for all technologies,
+but is certainly true for CMOS, the predominant technology in use today.
+
+\subsection{\lstinline|sc_signal<bool>|}
+\lstinline|sc_signal_in_if<bool>| and \lstinline|sc_signal_in_if<sc_dt::sc_logic>| are interfaces that provide additional member functions appropriate for two-valued signals. \lstinline|sc_signal| implements these functions:
+\begin{enumerate}
+ \item \lstinline|posedge_event()| returns reference to an event that is notified whenever the value of the channel changes and the new value of the channel is true or '1'.
+ \item \lstinline|negedge_event()| returns a reference to an event that is notified whenever the value of the channel changes and the new value of the channel is false or '0'.
+ \item \lstinline|posedge()| returns true if and only if the value of the channel changed in the update phase of the immediately preceding delta cycle and at the current simulation time, and the new value of the channel is true or '1'.
+ \item \lstinline|negedge()| returns true if and only if the value of the channel changed in the update phase of the immediately preceding delta cycle and at the current simulation time, and the new value of the channel is false or '0'.
+\end{enumerate}
+\section{Buffer}
+\lstinline|sc_buffer| is a predefined primitive channel derived from \lstinline|class sc_signal|. It differs from \lstinline|class sc_signal| in that a value-changed event is notified whenever the buffer is written rather than only when the value of the signal is changed. For example:
+\begin{itemize}
+ \item if current value of a "signal" \lstinline|== 1|: write 1 to it won't trigger value update event.
+ \item if current value of a "buffer" \lstinline|== 1|: write 1 to it will trigger value update event.
+\end{itemize}
+
+\section{Communications: Ports}
+Three key concepts for communication are:
+\begin{enumerate}
+ \item Interface:
+  \begin{enumerate}
+   \item an abstract class derived from \lstinline|sc_interface|, but not derived from \lstinline|sc_object|.
+   \item contains a set of pure \lstinline|virtual| functions that shall be defined in one or more channels derived from that interface.
+  \end{enumerate}
+ \item  Port:
+  \begin{enumerate}
+   \item provides the means by which a module can be written such that it is independent of the context in which it is instantiated.
+   \item forwards interface method calls to the channel to which the port is bound.
+   \item defines a set of services (as identified by the type of the port) that are required by the module containing the port.
+  \end{enumerate}
+ \item Channel:
+  \begin{enumerate}
+   \item  \lstinline|sc_prim_channel| is the base class for all primitive channels.
+   \item channel may provide public member functions that can be called using the interface method call paradigm.
+   \item a primitive channel shall implement one or more interfaces.
+  \end{enumerate}
+\end{enumerate}
+In short, port \emph{requires} services, interface \emph{defines} services, channel \emph{implements} services. A port can connect (bind) to a channel, if the channel implements the interface that the port requires. A \emph{port is basically a pointer to a channel}. Port is used in the following cases:
+\begin{enumerate}
+ \item If a module is to call a member function belonging to a channel that is outside the module itself, that call should be made using an interface method call through a port of the module. Otherwise it is considered bad coding style.
+ \item However, a call to a member function belonging to a channel instantiated within the current module may be made directly. This is known as \emph{portless channel access}.
+ \item If a module is to call a member function belonging to a channel instance within a child module, that call should be made through an export of the child module.
+\end{enumerate}
+
+\section{Communications: Export}
+An export:
+\begin{enumerate}
+ \item allows a module to provide an interface to its parent module,
+ \item forwards interface method calls to the channel to which the export is bound, and
+ \item defines a set of services that are provided by the module containing the export.
+\end{enumerate}
+When to use export:
+\begin{enumerate}
+ \item Providing an interface through an export is an alternative to a module simply implementing the interface.
+ \item The use of an explicit export allows a single module instance to provide multiple interfaces in a structured manner.
+ \item If a module is to call a member function belonging to a channel instance within a child module, that call should be made through an export of the child module.
+\end{enumerate}
+
+
+\section{Clock}
+\lstinline|sc_clock| s a \emph{predefined primitive channel} derived from the class \lstinline|sc_signal| and intended to \emph{model the behavior of a digital clock signal}. The value and events associated with the clock are accessed through the interface \lstinline|sc_signal_in_if<bool>|. The constructor is:
+\begin{lstlisting}
+sc_clock(
+  const char*  name_,
+  double       period_v_,
+  sc_time_unit period_tu_,
+  double       duty_cycle_,
+  double       start_time_v_,
+  sc_time_unit start_time_tu_,
+  bool         posedge_first_ = true );
+\end{lstlisting}
+where \lstinline|name_| is a unique module name. \lstinline|period_v_| is the time interval between two consecutive transitions from false to true, also equal to the time interval between two consecutive transitions from true to false. It value is greater than zero, and the default is 1 nanosecond. \lstinline|period_tu_| is the time unit, used for period. \lstinline|duty_cycle_| is   the proportion of the period during which the clock has the value true. Its value is between 0.0 and 1.0 (exclusive), and the default is 0.5. \lstinline|start_time_v_| is the absolute time of the first transition of the value of the clock (false to true or true to false). Its default is zero. \lstinline|posedge_first_|, if is set to true, the clock is initialized to false, and changes to true at the start time and vice versa. Its default is true.
+
+\subsection{Port-to-Port Communication}
+So far we covered the cases of:
+\begin{enumerate}
+ \item connecting two processes of same module via channel:
+ \begin{equation}
+      process1() \longrightarrow \mathbf{channel} \longrightarrow process2()
+\end{equation}
+ \item connecting two processes of different modules via port and channel:
+ \begin{eqnarray}
+      module1::process1() &\longrightarrow& module1::port1 \\\nonumber
+      &\longrightarrow& \mathbf{channel} \\\nonumber
+      &\longrightarrow& module2::port2 \\\nonumber
+      &\longrightarrow& module2::process2()
+\end{eqnarray}
+ \item connecting two processes of different modules via export:
+ \begin{eqnarray}
+      module1::process1()  &\longrightarrow& module1::channel  \\\nonumber
+      &\longrightarrow& module1::export1  \\\nonumber
+      &\longrightarrow& module2::port2  \\\nonumber
+      &\longrightarrow& module2::process2()
+\end{eqnarray}
+\end{enumerate}
+In all these cases, \emph{a channel is needed to connect the ports}. There is a special case that allows a port to  directly connect to a port of submodules. i.e.,
+\begin{equation}
+module::port1 \longrightarrow module::submodule::port2
+\end{equation}
+
+\end{document}
+
+
+
+I am following this website: \href{https://learnsystemc.com/}{Learn systemC}
